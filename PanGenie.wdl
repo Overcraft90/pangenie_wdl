@@ -129,4 +129,3 @@ task genome_inference {
         email: "mungaro@ucsc.edu"
         description: "WDL wrapper of a Docker container for the PanGenie tool. More info at [Docker Hub](https://hub.docker.com/repository/docker/overcraft90/eblerjana_pangenie) and at [PanGenie](https://github.com/eblerjana/pangenie) for docker versions and the tool itself, respectively."
     }
-}
