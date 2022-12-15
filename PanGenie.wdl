@@ -16,7 +16,6 @@ workflow pangenie {
 
         File PANGENOME_VCF # input vcf with variants to be genotyped
         File REF_GENOME # reference for variant calling
-        String VCF_PREFIX = "genotype" # string to attach to a sample's genotype
         String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
@@ -80,6 +79,7 @@ task reads_extraction_and_merging {
 
 task genome_inference {
     input {
+        String jellyfish_hash_size = "3000000000"
         String in_container_pangenie
         File in_reference_genome
         File in_pangenome_vcf
@@ -91,16 +91,30 @@ task genome_inference {
         Int in_mem
     }
     command <<<
+        ## save the working directory because that's were the final output file should be located
+        WD=`pwd`
+
+        ## write a config file for the snakemake run
         echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
         echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
         echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
         echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
         echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+        
         cd /app/pangenie/pipelines/run-from-callset
-        snakemake --cores ~{in_cores}
+
+        ## tweak snakefile to use the '-e' argument of pangenie.
+        ## Useful to decrease jellyfish hash size and run on lower memory machines
+        sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
+
+        ## run snakemake on the tweaked Snakefile
+        snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
+
+        ## copy the output of the workflow to the working directory
+        cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
     >>>
     output {
-        File vcf_file = "~{prefix_vcf}.vcf"
+        File vcf_file = "sample-genotypes.vcf"
     }
     runtime {
         docker: in_container_pangenie
@@ -109,4 +123,8 @@ task genome_inference {
         disks: "local-disk " + in_disk + " SSD"
         preemptible: 1 # can be useful for tools which execute sequential steps in a pipeline generating intermediate outputs
     }
+    meta{
+        author: "Matteo Ungaro & Jean Monlong"
+        email: "mungaro@ucsc.edu"
+        description: "WDL wrapper of a Docker container for the `PanGenie` tool. More info at [Docker Hub](https://hub.docker.com/repository/docker/overcraft90/eblerjana_pangenie) and at [PanGenie](https://github.com/eblerjana/pangenie) for docker versions and the tool itself, respectively."
 }
