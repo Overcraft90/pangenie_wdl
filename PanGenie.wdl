@@ -41,7 +41,6 @@ workflow pangenie {
         in_reference_genome=REF_GENOME,
         in_executable=EXE_PATH,
         in_fastq_file=reads_extraction_and_merging.fastq_file,
-        prefix_vcf=VCF_PREFIX,
         in_cores=CORES,
         in_disk=DISK,
         in_mem=MEM
@@ -85,7 +84,6 @@ task genome_inference {
         File in_pangenome_vcf
         String in_executable
         File in_fastq_file
-        String prefix_vcf
         Int in_cores
         Int in_disk
         Int in_mem
@@ -123,11 +121,9 @@ task genome_inference {
         disks: "local-disk " + in_disk + " SSD"
         preemptible: 1 # can be useful for tools which execute sequential steps in a pipeline generating intermediate outputs
     }
-    
     meta {
         author: "Matteo Ungaro & Jean Monlong"
         email: "mungaro@ucsc.edu"
         description: "WDL wrapper of a Docker container for the PanGenie tool. More info at [Docker Hub](https://hub.docker.com/repository/docker/overcraft90/eblerjana_pangenie) and at [PanGenie](https://github.com/eblerjana/pangenie) for docker versions and the tool itself, respectively."
     }
-    
 }
