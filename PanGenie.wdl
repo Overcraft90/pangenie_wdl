@@ -19,8 +19,8 @@ workflow pangenie {
         String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
-        Int DISK = 300 # storage memory for output files
-        Int MEM = 100 # RAM memory allocated
+        Int DISK = 500 # storage memory for output files
+        Int MEM = 200 # RAM memory allocated
     }
 
     call reads_extraction_and_merging {
