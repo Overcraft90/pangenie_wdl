@@ -8,7 +8,7 @@ version 1.0
 
 workflow pangenie {
     input {
-        String PANGENIE_CONTAINER = "overcraft90/eblerjana_pangenie:2.1.2"
+        String PANGENIE_CONTAINER = "overcraft90/eblerjana_pangenie:2.1.5"
         
         File FORWARD_FASTQ # compressed R1
         File REVERSE_FASTQ # compressed R2
@@ -19,8 +19,8 @@ workflow pangenie {
         String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
-        Int DISK = 1000 # storage memory for output files
-        Int MEM = 500 # RAM memory allocated
+        Int DISK = 500 # storage memory for output files
+        Int MEM = 250 # RAM memory allocated
     }
 
     call reads_extraction_and_merging {
@@ -91,25 +91,30 @@ task genome_inference {
     command <<<
         ## save the working directory because that's were the final output file should be located
         WD=`pwd`
-
-        ## write a config file for the snakemake run
-        echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
-        echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
         
-        cd /app/pangenie/pipelines/run-from-callset
+        ## run PanGenie
+        ./PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -t ~{in_cores} -j ~{in_pangenome_vcf}
+        
+        ## copy the output of the workflow to the working directory
+        cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
+        
+        
+        ##OLD##
+        ## write a config file for the snakemake run
+        #echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
+        #echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+        #echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
+        #echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+        #echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+        
+        #cd /app/pangenie/pipelines/run-from-callset
 
         ## tweak snakefile to use the '-e' argument of pangenie.
         ## Useful to decrease jellyfish hash size and run on lower memory machines
-        sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
+        #sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
 
         ## run snakemake on the tweaked Snakefile
-        snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
-
-        ## copy the output of the workflow to the working directory
-        cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
+        #snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
     >>>
     output {
         File vcf_file = "sample-genotypes.vcf"
