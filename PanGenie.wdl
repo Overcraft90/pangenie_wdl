@@ -89,35 +89,35 @@ task genome_inference {
         Int in_mem
     }
     command <<<
-        ## save the working directory because that's were the final output file should be located
-        WD=`pwd`
+    ## run PanGenie
+    /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
         
-        ## run PanGenie
-        ./PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -t ~{in_cores} -j ~{in_pangenome_vcf}
-        
-        ## copy the output of the workflow to the working directory
-        cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
-        
-        
-        ##OLD##
-        ## write a config file for the snakemake run
-        #echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
-        #echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        #echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        #echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        #echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-        
-        #cd /app/pangenie/pipelines/run-from-callset
 
-        ## tweak snakefile to use the '-e' argument of pangenie.
-        ## Useful to decrease jellyfish hash size and run on lower memory machines
-        #sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
+    ##OLD##
+    ## save the working directory because that's were the final output file should be located
+    #WD=`pwd`
 
-        ## run snakemake on the tweaked Snakefile
-        #snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
+    ## write a config file for the snakemake run
+    #echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
+    #echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+    #echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
+    #echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+    #echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
+    
+    #cd /app/pangenie/pipelines/run-from-callset
+
+    ## tweak snakefile to use the '-e' argument of pangenie.
+    ## Useful to decrease jellyfish hash size and run on lower memory machines
+    #sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
+
+    ## run snakemake on the tweaked Snakefile
+    #snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
+
+    ## copy the output of the workflow to the working directory
+    #cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
     >>>
     output {
-        File vcf_file = "sample-genotypes.vcf"
+        File vcf_file = "result_genotyping.vcf"
     }
     runtime {
         docker: in_container_pangenie
