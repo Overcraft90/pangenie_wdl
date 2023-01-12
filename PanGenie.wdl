@@ -16,7 +16,7 @@ workflow pangenie {
 
         File PANGENOME_VCF # input vcf with variants to be genotyped
         File REF_GENOME # reference for variant calling
-        String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
+        #String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
         Int DISK = 500 # storage memory for output files
@@ -39,7 +39,7 @@ workflow pangenie {
         in_container_pangenie=PANGENIE_CONTAINER,
         in_pangenome_vcf=PANGENOME_VCF,
         in_reference_genome=REF_GENOME,
-        in_executable=EXE_PATH,
+        #in_executable=EXE_PATH,
         in_fastq_file=reads_extraction_and_merging.fastq_file,
         in_cores=CORES,
         in_disk=DISK,
@@ -82,7 +82,7 @@ task genome_inference {
         String in_container_pangenie
         File in_reference_genome
         File in_pangenome_vcf
-        String in_executable
+        #String in_executable
         File in_fastq_file
         Int in_cores
         Int in_disk
@@ -91,33 +91,11 @@ task genome_inference {
     command <<<
     ## run PanGenie
     /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
-        
-
-    ##OLD##
-    ## save the working directory because that's were the final output file should be located
-    #WD=`pwd`
-
-    ## write a config file for the snakemake run
-    #echo "vcf: ~{in_pangenome_vcf}" > /app/pangenie/pipelines/run-from-callset/config.yaml
-    #echo "reference: ~{in_reference_genome}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-    #echo $'reads:\n sample: ~{in_fastq_file}' >> /app/pangenie/pipelines/run-from-callset/config.yaml
-    #echo "pangenie: ~{in_executable}" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-    #echo "outdir: /app/pangenie" >> /app/pangenie/pipelines/run-from-callset/config.yaml
-    
-    #cd /app/pangenie/pipelines/run-from-callset
-
-    ## tweak snakefile to use the '-e' argument of pangenie.
-    ## Useful to decrease jellyfish hash size and run on lower memory machines
-    #sed "s/{pangenie} -i/{pangenie} -e ~{jellyfish_hash_size} -i/" Snakefile > Snakefile_tweaked
-
-    ## run snakemake on the tweaked Snakefile
-    #snakemake --cores ~{in_cores} --snakefile Snakefile_tweaked
-
-    ## copy the output of the workflow to the working directory
-    #cp /app/pangenie/genotypes/sample-genotypes.vcf $WD/sample-genotypes.vcf
+    ## compress VCF file
+    pigz -9cp ~{in_cores} result_genotyping.vcf > result_genotyping.vcf.gz
     >>>
     output {
-        File vcf_file = "result_genotyping.vcf"
+        File vcf_file = "result_genotyping.vcf.gz"
     }
     runtime {
         docker: in_container_pangenie
