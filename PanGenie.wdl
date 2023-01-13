@@ -12,11 +12,10 @@ workflow pangenie {
         
         File FORWARD_FASTQ # compressed R1
         File REVERSE_FASTQ # compressed R2
-        String NAME = "sample" # grub names' prefix!?
+        String NAME
 
         File PANGENOME_VCF # input vcf with variants to be genotyped
         File REF_GENOME # reference for variant calling
-        #String EXE_PATH = "/app/pangenie/build/src/PanGenie" # path to PanGenie executable in Docker
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
         Int DISK = 500 # storage memory for output files
@@ -39,8 +38,8 @@ workflow pangenie {
         in_container_pangenie=PANGENIE_CONTAINER,
         in_pangenome_vcf=PANGENOME_VCF,
         in_reference_genome=REF_GENOME,
-        #in_executable=EXE_PATH,
         in_fastq_file=reads_extraction_and_merging.fastq_file,
+        in_label=NAME,
         in_cores=CORES,
         in_disk=DISK,
         in_mem=MEM
@@ -82,8 +81,8 @@ task genome_inference {
         String in_container_pangenie
         File in_reference_genome
         File in_pangenome_vcf
-        #String in_executable
         File in_fastq_file
+        String in_label
         Int in_cores
         Int in_disk
         Int in_mem
@@ -91,11 +90,12 @@ task genome_inference {
     command <<<
     ## run PanGenie
     /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
+    
     ## compress VCF file
-    pigz -9cp ~{in_cores} result_genotyping.vcf > result_genotyping.vcf.gz
+    pigz -9cp ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
     >>>
     output {
-        File vcf_file = "result_genotyping.vcf.gz"
+        File vcf_file = "~{in_label}_genotyping.vcf.gz"
     }
     runtime {
         docker: in_container_pangenie
