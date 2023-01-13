@@ -18,7 +18,7 @@ workflow pangenie {
         File REF_GENOME # reference for variant calling
 
         Int CORES = 24 # number of cores to allocate for PanGenie execution
-        Int DISK = 500 # storage memory for output files
+        Int DISK # storage memory for output files
         Int MEM = 250 # RAM memory allocated
     }
 
