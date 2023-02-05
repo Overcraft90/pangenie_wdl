@@ -48,6 +48,7 @@ workflow pangenie {
     output {
         File sample = reads_extraction_and_merging.fastq_file
         File genotype = genome_inference.vcf_file
+        File index = genome_inference.index_file
     }
 }
 
@@ -91,11 +92,16 @@ task genome_inference {
     ## run PanGenie
     /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
     
-    ## compress VCF file
-    pigz -9cp ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
+    ## compress, index and sort VCF file
+    bgzip -l 9 -@ ~{in_cores} result_genotyping.vcf
+    mv result_genotyping.vcf.gz ~{in_label}_genotyping.vcf.gz
+    tabix -p vcf ~{in_label}_genotyping.vcf.gz | bcftools sort -o ~{in_label}_genotyping.vcf.gz -Oz9 ~{in_label}_genotyping.vcf.gz
+        
+    #pigz -9cp ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
     >>>
     output {
         File vcf_file = "~{in_label}_genotyping.vcf.gz"
+        File index_file = "~{in_label}_genotyping.vcf.gz.tbi"
     }
     runtime {
         docker: in_container_pangenie
