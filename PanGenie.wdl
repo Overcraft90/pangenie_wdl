@@ -12,7 +12,7 @@ workflow pangenie {
         
         File FORWARD_FASTQ # compressed R1
         File REVERSE_FASTQ # compressed R2
-        String NAME
+        String SAMPLE_NAME
 
         File PANGENOME_VCF # input vcf with variants to be genotyped
         File REF_GENOME # reference for variant calling
@@ -24,10 +24,9 @@ workflow pangenie {
 
     call reads_extraction_and_merging {
         input:
-        in_container_pangenie=PANGENIE_CONTAINER,
         in_forward_fastq=FORWARD_FASTQ,
         in_reverse_fastq=REVERSE_FASTQ,
-        in_label=NAME,
+        in_label=SAMPLE_NAME,
         in_cores=CORES,
         in_disk=DISK,
         in_mem=MEM
@@ -39,22 +38,20 @@ workflow pangenie {
         in_pangenome_vcf=PANGENOME_VCF,
         in_reference_genome=REF_GENOME,
         in_fastq_file=reads_extraction_and_merging.fastq_file,
-        in_label=NAME,
+        in_label=SAMPLE_NAME,
         in_cores=CORES,
         in_disk=DISK,
         in_mem=MEM
     }
-
+    
     output {
-        File sample = reads_extraction_and_merging.fastq_file
         File genotype = genome_inference.vcf_file
-        File index = genome_inference.index_file
+        File? index = genome_inference.index_file
     }
 }
 
 task reads_extraction_and_merging {
     input {
-        String in_container_pangenie
         File in_forward_fastq
         File in_reverse_fastq
         String in_label
@@ -69,7 +66,7 @@ task reads_extraction_and_merging {
         File fastq_file = "~{in_label}.fastq"
     }
     runtime {
-        docker: in_container_pangenie
+        docker: "quay.io/biocontainers/pigz:2.3.4"
         memory: in_mem + " GB"
         cpu: in_cores
         disks: "local-disk " + in_disk + " SSD"
@@ -90,14 +87,11 @@ task genome_inference {
     }
     command <<<
     ## run PanGenie
-    /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
-    
-    ## compress, index and sort VCF file
-    bgzip -l 9 -@ ~{in_cores} result_genotyping.vcf
-    mv result_genotyping.vcf.gz ~{in_label}_genotyping.vcf.gz
-    tabix -p vcf ~{in_label}_genotyping.vcf.gz | bcftools sort -o ~{in_label}_genotyping.vcf.gz -Oz9 ~{in_label}_genotyping.vcf.gz
-        
-    #pigz -9cp ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
+    /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -s ~{in_label} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
+    ## bgzip compression
+    bgzip -c -@ ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
+    ## index VCF
+    tabix -p vcf ~{in_label}_genotyping.vcf.gz
     >>>
     output {
         File vcf_file = "~{in_label}_genotyping.vcf.gz"

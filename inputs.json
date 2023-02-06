@@ -1,0 +1,11 @@
+{
+  "pangenie.FORWARD_FASTQ": "test/reads_1.fastq.gz",
+  "pangenie.REVERSE_FASTQ": "test/reads_2.fastq.gz",
+  "pangenie.SAMPLE_NAME": "test",
+  "pangenie.PANGENOME_VCF": "test/variants.vcf",
+  "pangenie.REF_GENOME": "test/ref.fa",
+  "pangenie.CORES": 2,
+  "pangenie.DISK": 10,
+  "pangenie.MEM": 10,
+  "pangenie.genome_inference.jellyfish_hash_size": "1000"
+}
