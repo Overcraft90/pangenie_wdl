@@ -8,7 +8,7 @@ version 1.0
 
 workflow pangenie {
     input {
-        String PANGENIE_CONTAINER = "overcraft90/eblerjana_pangenie:2.1.6"
+        String PANGENIE_CONTAINER = "overcraft90/eblerjana_pangenie:2.1.7"
         
         File FORWARD_FASTQ # compressed R1
         File REVERSE_FASTQ # compressed R2
