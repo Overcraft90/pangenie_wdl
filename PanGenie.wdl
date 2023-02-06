@@ -17,7 +17,6 @@ workflow pangenie {
         File PANGENOME_VCF # input vcf with variants to be genotyped
         File REF_GENOME # reference for variant calling
 
-        Boolean SORT_INDEX_OUTPUT_VCF = true # should the output VCF be sorted, bgzipped and indexed? Default is true. If false, VCF is just gzipped.
         Int CORES = 24 # number of cores to allocate for PanGenie execution
         Int DISK # storage memory for output files
         Int MEM = 250 # RAM memory allocated
@@ -44,18 +43,10 @@ workflow pangenie {
         in_disk=DISK,
         in_mem=MEM
     }
-
-    if (SORT_INDEX_OUTPUT_VCF){
-        call sortIndexVCF {
-            input: in_vcf_file=genome_inference.vcf_file
-        }
-    }
-
-    File output_vcf = select_first([sortIndexVCF.vcf_file, genome_inference.vcf_file])
     
     output {
-        File genotype = output_vcf
-        File? index = sortIndexVCF.index_file
+        File genotype = genome_inference.vcf_file
+        File? index = genome_inference.index_file
     }
 }
 
@@ -97,12 +88,14 @@ task genome_inference {
     command <<<
     ## run PanGenie
     /app/pangenie/build/src/PanGenie -i ~{in_fastq_file} -r ~{in_reference_genome} -s ~{in_label} -v ~{in_pangenome_vcf} -e ~{jellyfish_hash_size} -t ~{in_cores} -j ~{in_cores}
-    
-    ## quick gzip compression
-    pigz -cp ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
+    ## bgzip compression
+    bgzip -c -@ ~{in_cores} result_genotyping.vcf > ~{in_label}_genotyping.vcf.gz
+    ## index VCF
+    tabix -p vcf ~{in_label}_genotyping.vcf.gz
     >>>
     output {
         File vcf_file = "~{in_label}_genotyping.vcf.gz"
+        File index_file = "~{in_label}_genotyping.vcf.gz.tbi"
     }
     runtime {
         docker: in_container_pangenie
@@ -117,38 +110,3 @@ task genome_inference {
         description: "WDL wrapper of a Docker container for the PanGenie tool. More info at [Docker Hub](https://hub.docker.com/repository/docker/overcraft90/eblerjana_pangenie) and at [PanGenie](https://github.com/eblerjana/pangenie) for docker versions and the tool itself, respectively."
     }
 }
-
-task sortIndexVCF {
-    input {
-        File in_vcf_file
-        Int disk_size = 30 * round(size(in_vcf_file, "G")) + 50
-        Int mem_gb = 8
-    }
-
-    ## file basename with .gz or .vcf extensions stripped
-    String out_prefix = sub(sub(basename(in_vcf_file), ".gz", ""), ".vcf", "")
-    command <<<
-    ## bcftools doesn't like when the contigs are not defined in the header, so let's sort it manually
-
-    ## extract the header
-    bcftools view -h ~{in_vcf_file} > ~{out_prefix}.sorted.vcf
-    ## sort the non-header lines
-    bcftools view -H ~{in_vcf_file} | sort -k1,1d -k2,2n >> ~{out_prefix}.sorted.vcf
-    ## bgzip
-    bgzip ~{out_prefix}.sorted.vcf
-    ## index
-    tabix -f -p vcf ~{out_prefix}.sorted.vcf.gz
-    >>>
-    output {
-        File vcf_file = "~{out_prefix}.sorted.vcf.gz"
-        File index_file = "~{out_prefix}.sorted.vcf.gz.tbi"
-    }
-    runtime {
-        docker: "quay.io/biocontainers/bcftools:1.16--hfe4b78e_1"
-        memory: mem_gb + " GB"
-        cpu: 1
-        disks: "local-disk " + disk_size + " SSD"
-        preemptible: 1 # can be useful for tools which execute sequential steps in a pipeline generating intermediate outputs
-    }
-}
-
